@@ -8,17 +8,19 @@
 
 示例(Demo)：[https://www.zhujiboke.com/zbench-example.html](https://www.zhujiboke.com/zbench-example.html)
 
+FORK:这个版本fork下载自用~如有问题具体请到源作者反馈
+
 ## 脚本命令
 
 如果中文版出现乱码等情况，请换成英文版。
 
 中文版：
 
-    wget -N --no-check-certificate https://raw.githubusercontent.com/FunctionClub/ZBench/master/ZBench-CN.sh && bash ZBench-CN.sh
+    wget  https://raw.githubusercontent.com/FQrabbit/ZBench/master/ZBench-CN.sh && bash ZBench-CN.sh
     
 英文版：
 
-    wget -N --no-check-certificate https://raw.githubusercontent.com/FunctionClub/ZBench/master/ZBench.sh && bash ZBench.sh
+    wget  https://raw.githubusercontent.com/FQrabbit/ZBench/master/ZBench.sh && bash ZBench.sh
     
 ## 效果图
 
