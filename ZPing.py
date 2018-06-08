@@ -7,13 +7,16 @@
  2. http://www.pythoner.com/357.html
 '''
 
-import os 
-import argparse 
-import socket
-import struct
-import select
-import json
-import time
+import commands
+
+def ping(host):
+    cmd = "ping "+ str(host) + " -c2 -W 2"
+    result = commands.getoutput(cmd)
+    result = result.split()
+    result = result[-2].split("/")[0]
+    if result.isalpha():
+        result = False
+    return float(result)
 
 STYLE = {
     'fore': {
@@ -44,11 +47,11 @@ def use_style(string, mode='', fore='', back=''):
 
 D = {
     'Zhengzhou': '61.168.23.74', 
-    'Jinan': 'speedtest1.jnltwy.com', 
-    'Tianjin': 'speedtest1.online.tj.cn', 
+    'Jinan': '202.102.152.3',
+    'Tianjin': '219.150.32.132', 
     'Changji': '61.128.107.242',
     'Lhasa': '221.13.70.244', 
-    'Changchun': 'speedtest2.vicp.cc', 
+    'Changchun': '202.98.0.68',
     'Shenzhen': '119.147.52.35', 
     'Lanzhou': 'www.lanzhouunicom.com', 
     'Xining': '221.207.32.94', 
@@ -58,14 +61,14 @@ D = {
     'Nanchang': 'speedtest2.wy.jxunicom.com', 
     'Chongqing': 'speedtest1.cqccn.com', 
     'Shanghai': 'speedtest2.sh.chinamobile.com',
-    'Huhehaote': 'www.nmwanwang.com',
-    'Urumqi': '4g.xj169.com', 
+    'Huhehaote': '222.74.1.200',
+    'Urumqi': '61.128.114.133',
     'Hangzhou': '122.229.136.10',
     'Xi an': 'xatest.wo-xa.com', 
     'Ningbo': 'ltetest3.139site.com',
     'Taiyuan': 'speedtest.sxunicomjzjk.cn', 
     'Suzhou': '218.94.214.42', 
-    'Changsha': 'speedtest01.hn165.com', 
+    'Changsha': '61.234.254.5',
     'Harbin': '221.212.238.106',
     'Beijing': 'st1.bjtelecom.net',
     'Chengdu': 'speed.westidc.com.cn', 
@@ -76,146 +79,14 @@ D = {
     }
 
 
-ICMP_ECHO_REQUEST = 8
-DEFAULT_TIMEOUT = 2
-DEFAULT_COUNT = 3
-
-class Pinger(object):
-	""" Pings to a host -- the Pythonic way"""
-	
-	def __init__(self, target_host, count=DEFAULT_COUNT, timeout=DEFAULT_TIMEOUT):
-		self.target_host = target_host
-		self.count = count
-		self.timeout = timeout
-		self.delay_list=list()
-		
-
-
-	def do_checksum(self, source_string):
-		"""  Verify the packet integritity """
-		sum = 0
-		max_count = (len(source_string)/2)*2
-		count = 0
-		while count < max_count:
-			val = ord(source_string[count + 1])*256 + ord(source_string[count])
-			sum = sum + val
-			sum = sum & 0xffffffff 
-			count = count + 2
-	 
-		if max_count<len(source_string):
-			sum = sum + ord(source_string[len(source_string) - 1])
-			sum = sum & 0xffffffff 
-	 
-		sum = (sum >> 16)  +  (sum & 0xffff)
-		sum = sum + (sum >> 16)
-		answer = ~sum
-		answer = answer & 0xffff
-		answer = answer >> 8 | (answer << 8 & 0xff00)
-		return answer
- 
-	def receive_pong(self, sock, ID, timeout):
-		"""
-		Receive ping from the socket.
-		"""
-		time_remaining = timeout
-		while True:
-			start_time = time.time()
-			readable = select.select([sock], [], [], time_remaining)
-			time_spent = (time.time() - start_time)
-			if readable[0] == []: # Timeout
-				return
-	 
-			time_received = time.time()
-			recv_packet, addr = sock.recvfrom(1024)
-			icmp_header = recv_packet[20:28]
-			type, code, checksum, packet_ID, sequence = struct.unpack(
-				"bbHHh", icmp_header
-			)
-			if packet_ID == ID:
-				bytes_In_double = struct.calcsize("d")
-				time_sent = struct.unpack("d", recv_packet[28:28 + bytes_In_double])[0]
-				return time_received - time_sent
-	 
-			time_remaining = time_remaining - time_spent
-			if time_remaining <= 0:
-				return
-	 
-	 
-	def send_ping(self, sock,  ID):
-		"""
-		Send ping to the target host
-		"""
-		target_addr  =  socket.gethostbyname(self.target_host)
-	 
-		my_checksum = 0
-	 
-		# Create a dummy heder with a 0 checksum.
-		header = struct.pack("bbHHh", ICMP_ECHO_REQUEST, 0, my_checksum, ID, 1)
-		bytes_In_double = struct.calcsize("d")
-		data = (192 - bytes_In_double) * "Q"
-		data = struct.pack("d", time.time()) + data
-	 
-		# Get the checksum on the data and the dummy header.
-		my_checksum = self.do_checksum(header + data)
-		header = struct.pack(
-			"bbHHh", ICMP_ECHO_REQUEST, 0, socket.htons(my_checksum), ID, 1
-		)
-		packet = header + data
-		sock.sendto(packet, (target_addr, 1))
-	 
-	 
-	def ping_once(self):
-		"""
-		Returns the delay (in seconds) or none on timeout.
-		"""
-		icmp = socket.getprotobyname("icmp")
-		try:
-			sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp)
-		except socket.error, (errno, msg):
-			if errno == 1:
-				# Not superuser, so operation not permitted
-				msg +=  "ICMP messages can only be sent from root user processes"
-				raise socket.error(msg)
-		except Exception, e:
-			print "Exception: %s" %(e)
-	
-		my_ID = os.getpid() & 0xFFFF
-	 
-		self.send_ping(sock, my_ID)
-		delay = self.receive_pong(sock, my_ID, self.timeout)
-		sock.close()
-		return delay
-	 
-	 
-	def ping(self):
-		"""
-		Run the ping process
-		"""
-		for i in xrange(self.count):
-			try:
-				delay  =  self.ping_once()
-			except socket.gaierror, e:
-				return False
-				break
-	 
-			if delay  ==  None:
-				return False
-			else:
-				delay  =  delay * 1000
-				self.delay_list.append(delay)
-		return (sum(self.delay_list)/len(self.delay_list))
-
-
-count = 1
 string =list()
 d=dict()
 
 for x in D:
     host=D[x]
-    pinger = Pinger(host)
-    result = pinger.ping()
-	
-	
+    result = ping(host)
+
+
     if result == False:
         latency_str = use_style(str("Fail"), fore='red')
     elif float(result) <= 60:
@@ -225,7 +96,7 @@ for x in D:
     else:
         latency_str = use_style(str(round(result,2))+" ms", fore='red')
 
-	d[x] = float(result)
+    d[x] = float(result)
 
     string.append((x,latency_str))
     if len(string) == 3:
